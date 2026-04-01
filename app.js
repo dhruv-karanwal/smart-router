@@ -1,7 +1,16 @@
 /**
  * Smart Emergency Route Optimization System
  * app.js — Algorithms, Canvas Visualization, Charts, Comparison Dashboard
+ *
+ * When served via server.js (node server.js → localhost:3000) the
+ * Calculate and Compare buttons call the Node.js /api/* endpoints which
+ * spawn the real compiled C++ binary for every result.
+ * If the server is not running (file:// mode) the JS implementations are
+ * used automatically as a fallback.
  */
+
+// true when running via the Node.js server (same origin, not file://)
+const SERVER_MODE = window.location.protocol !== 'file:';
 
 /* ===================================================
    CITY GRAPH DATA
@@ -422,7 +431,7 @@ function populateDropdowns() {
     });
 }
 
-function runCalculation() {
+async function runCalculation() {
     const src = parseInt(document.getElementById('startLocation').value);
     const dst = parseInt(document.getElementById('endLocation').value);
     if (isNaN(src) || isNaN(dst)) { alert('Please select both start and destination.'); return; }
@@ -431,18 +440,55 @@ function runCalculation() {
     const btn = document.getElementById('calculateBtn');
     btn.classList.add('btn-loading'); btn.disabled = true;
 
-    setTimeout(() => {
-        const meta = ALGO_META[currentAlgo];
-        const result = meta.fn(src, dst);
-        const pathNodes = reconstructPath(result.prev, dst);
+    const meta = ALGO_META[currentAlgo];
+
+    try {
+        let result;
+
+        if (SERVER_MODE) {
+            // ── C++ path via Node.js server ────────────────────────────
+            const algoKey = currentAlgo === 'astar' ? 'astar'
+                : currentAlgo === 'bellman' ? 'bellman'
+                    : currentAlgo === 'floyd' ? 'floyd'
+                        : 'dijkstra';
+
+            const res = await fetch('/api/route', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ src, dst, algo: algoKey })
+            });
+
+            if (!res.ok) throw new Error(await res.text());
+            const data = await res.json();
+
+            // Normalise C++ JSON response to the same shape the UI expects
+            const dist = Array(N).fill(Infinity);
+            dist[dst] = data.dist;
+            // Build prev[] from path array
+            const prev = Array(N).fill(-1);
+            const path = data.path || [];
+            for (let i = 1; i < path.length; i++) prev[path[i]] = path[i - 1];
+
+            result = {
+                dist, prev,
+                explored: new Set(path),
+                nodesExplored: data.nodesExplored,
+                execTime: data.execTimeMs,
+                _path: path   // pre-built path from C++
+            };
+        } else {
+            // ── JS fallback (file:// mode) ─────────────────────────────
+            result = meta.fn(src, dst);
+        }
+
+        const pathNodes = result._path || reconstructPath(result.prev, dst);
         currentPathResult = { pathNodes, explored: result.explored, src, dst, color: meta.color };
 
         document.getElementById('canvasOverlay').classList.add('hidden');
         animatePath(document.getElementById('mainMapCanvas'), pathNodes, result.explored, src, dst, meta.color, 1400);
 
-        // Update result card
-        const distKm = result.dist[dst].toFixed(1);
-        const timeMin = Math.ceil(result.dist[dst] / 60 * 60);
+        const distKm = (result.dist[dst] === Infinity ? '∞' : result.dist[dst].toFixed(1));
+        const timeMin = result.dist[dst] === Infinity ? '—' : Math.ceil(result.dist[dst] / 60 * 60);
         document.getElementById('resultDistance').textContent = `${distKm} km`;
         document.getElementById('resultTime').textContent = `~${timeMin} min`;
         document.getElementById('resultNodes').textContent = result.nodesExplored;
@@ -450,7 +496,9 @@ function runCalculation() {
         document.getElementById('resultCard').classList.add('visible');
         document.getElementById('routeLength').textContent = `${distKm} km`;
         document.getElementById('selectedAlgo').textContent = meta.name;
-        document.getElementById('mapInfo').textContent = `Path: ${CITY_NODES[src].name} → ${CITY_NODES[dst].name} | ${meta.name} | ${distKm} km`;
+        document.getElementById('mapInfo').textContent =
+            `Path: ${CITY_NODES[src].name} → ${CITY_NODES[dst].name} | ${meta.name} | ${distKm} km` +
+            (SERVER_MODE ? ' [C++]' : ' [JS]');
 
         const pathEl = document.getElementById('resultPath');
         pathEl.innerHTML = '';
@@ -459,14 +507,17 @@ function runCalculation() {
             s.textContent = CITY_NODES[nid].name.split(' ')[0]; pathEl.appendChild(s);
         });
 
-        // Also sync comparison src/dst
         compSrc = src; compDst = dst;
         document.getElementById('selRouteInfo').innerHTML = `
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
       Route: <strong style="color:var(--navy)">${CITY_NODES[src].name}</strong> → <strong style="color:var(--navy)">${CITY_NODES[dst].name}</strong>`;
 
-        btn.classList.remove('btn-loading'); btn.disabled = false;
-    }, 300);
+    } catch (err) {
+        console.error('Route error:', err);
+        alert('Error running algorithm: ' + (err.message || JSON.stringify(err)));
+    }
+
+    btn.classList.remove('btn-loading'); btn.disabled = false;
 }
 
 function resetMap() {
@@ -484,14 +535,13 @@ function resetMap() {
 /* ===================================================
    COMPARISON DASHBOARD LOGIC
    =================================================== */
-function runComparison() {
+async function runComparison() {
     const src = compSrc >= 0 ? compSrc : parseInt(document.getElementById('startLocation').value);
     const dst = compDst >= 0 ? compDst : parseInt(document.getElementById('endLocation').value);
     if (isNaN(src) || isNaN(dst) || src === dst) {
         alert('Please calculate a route in the Route Planner first, or select valid start/destination.'); return;
     }
 
-    // Get checked algorithms
     const checkedAlgos = [];
     document.querySelectorAll('.checkbox-list input[type=checkbox]:checked').forEach(cb => checkedAlgos.push(cb.value));
     if (checkedAlgos.length === 0) { alert('Please select at least one algorithm.'); return; }
@@ -502,7 +552,7 @@ function runComparison() {
     comparisonResults = {};
     const allKeys = ['dijkstra', 'astar', 'bellman', 'floyd'];
 
-    // Mark all as idle/skipped
+    // Reset table cells
     allKeys.forEach(k => {
         const s = document.getElementById(`status-${k}`);
         if (s) { s.textContent = checkedAlgos.includes(k) ? 'Running…' : 'Skipped'; s.className = `badge-status ${checkedAlgos.includes(k) ? 'status-running' : 'status-skipped'}`; }
@@ -511,23 +561,50 @@ function runComparison() {
             const el = document.getElementById(`td-${prefix}-${col}`);
             if (el) el.textContent = checkedAlgos.includes(k) ? '…' : '—';
         });
-        const pDots = ['d-nodes', 'a-nodes', 'b-nodes', 'a-path', 'd-path', 'b-path'];
     });
 
-    let delay = 0;
-    checkedAlgos.forEach(key => {
-        setTimeout(() => {
+    try {
+        let rawResults = {};
+
+        if (SERVER_MODE) {
+            // ── Single C++ call returns all results at once ─────────────
+            const res = await fetch('/api/compare', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ src, dst, algos: checkedAlgos })
+            });
+            if (!res.ok) throw new Error(await res.text());
+            rawResults = await res.json(); // { dijkstra: {...}, astar: {...}, ... }
+        } else {
+            // ── JS fallback ──────────────────────────────────────────────
+            for (const key of checkedAlgos) {
+                const meta = ALGO_META[key];
+                rawResults[key] = meta.fn(src, dst);
+                rawResults[key]._jsResult = true;
+            }
+        }
+
+        // Populate table row by row (with a small stagger for visual effect)
+        for (let i = 0; i < checkedAlgos.length; i++) {
+            const key = checkedAlgos[i];
+            const data = rawResults[key];
+            if (!data) continue;
+
+            await new Promise(r => setTimeout(r, i * 200)); // stagger
+
             const meta = ALGO_META[key];
-            const result = meta.fn(src, dst);
-            const path = reconstructPath(result.prev, dst);
-            const distKm = result.dist[dst] === Infinity ? '∞' : `${result.dist[dst].toFixed(1)} km`;
+            const path = data.path || (data._jsResult ? reconstructPath(data.prev, dst) : []);
+            const distKm = (data.dist === null || data.dist === undefined)
+                ? (data._jsResult ? (data.dist?.[dst] === Infinity ? '∞' : `${data.dist?.[dst].toFixed(1)} km`) : '∞')
+                : `${parseFloat(data.dist).toFixed(1)} km`;
             const pathStr = path.length > 1 ? path.map(n => CITY_NODES[n].name.split(' ')[0]).join('→') : '—';
-            const timeMs = result.execTime.toFixed(3);
+            const timeMs = data._jsResult ? data.execTime.toFixed(3) : parseFloat(data.execTimeMs).toFixed(3);
+            const nodesEx = data._jsResult ? data.nodesExplored : data.nodesExplored;
 
             const { prefix } = meta;
             const setCell = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
-            setCell(`td-${prefix}-nodes`, result.nodesExplored);
-            setCell(`td-${prefix}-time`, `${timeMs} ms`);
+            setCell(`td-${prefix}-nodes`, nodesEx);
+            setCell(`td-${prefix}-time`, `${timeMs} ms${SERVER_MODE ? ' [C++]' : ''}`);
             setCell(`td-${prefix}-path`, distKm);
             setCell(`td-${prefix}-result`, pathStr);
             const rEl = document.getElementById(`td-${prefix}-result`);
@@ -536,16 +613,33 @@ function runComparison() {
             const s = document.getElementById(`status-${key}`);
             if (s) { s.textContent = '✓ Done'; s.className = 'badge-status status-done'; }
 
-            comparisonResults[key] = { ...result, pathNodes: path, distKm, timeMs: parseFloat(timeMs), pathStr, color: meta.color, name: meta.name };
+            // Build explored set from path for canvas visualisation
+            const explored = new Set(path);
 
-            // If all done
-            if (Object.keys(comparisonResults).length === checkedAlgos.length) {
-                finishComparison(src, dst);
-                btn.classList.remove('btn-loading'); btn.disabled = false;
-            }
-        }, delay);
-        delay += 250;
-    });
+            // Build dist array for finishComparison
+            const distVal = data._jsResult ? data.dist[dst] : parseFloat(data.dist);
+            const distArr = Array(N).fill(Infinity); distArr[dst] = distVal;
+
+            // Build prev[] from path
+            const prev = Array(N).fill(-1);
+            for (let pi = 1; pi < path.length; pi++) prev[path[pi]] = path[pi - 1];
+
+            comparisonResults[key] = {
+                dist: distArr, prev, explored, pathNodes: path,
+                nodesExplored: nodesEx,
+                execTime: parseFloat(timeMs),
+                distKm, timeMs: parseFloat(timeMs), pathStr,
+                color: meta.color, name: meta.name
+            };
+        }
+
+        finishComparison(src, dst);
+    } catch (err) {
+        console.error('Comparison error:', err);
+        alert('Error running comparison: ' + (err.message || JSON.stringify(err)));
+    }
+
+    btn.classList.remove('btn-loading'); btn.disabled = false;
 }
 
 function finishComparison(src, dst) {
