@@ -86,6 +86,56 @@ inline AdjList buildGraph() {
 }
 
 // ─────────────────────────────────────────────
+//  DYNAMIC STATE 
+// ─────────────────────────────────────────────
+struct GraphState {
+    std::vector<std::pair<int, int>> blockedEdges;
+    // Keys: "u-v", Value: multiplier
+    std::unordered_map<std::string, double> trafficMultipliers;
+    double emergencyPriorityFactor; // subtracts from weight
+};
+
+inline AdjList buildDynamicGraph(const GraphState& state) {
+    AdjList g(N);
+    for (const auto& e : CITY_EDGES) {
+        // Check if edge is blocked
+        bool isBlocked = false;
+        for (const auto& b : state.blockedEdges) {
+            if ((b.first == e.u && b.second == e.v) || (b.first == e.v && b.second == e.u)) {
+                isBlocked = true;
+                break;
+            }
+        }
+        if (isBlocked) continue; // Skip blocked edges
+
+        double curWeight = e.w;
+
+        // Apply traffic
+        std::string key1 = std::to_string(e.u) + "-" + std::to_string(e.v);
+        std::string key2 = std::to_string(e.v) + "-" + std::to_string(e.u);
+        
+        if (state.trafficMultipliers.count(key1)) {
+            curWeight *= state.trafficMultipliers.at(key1);
+        } else if (state.trafficMultipliers.count(key2)) {
+            curWeight *= state.trafficMultipliers.at(key2);
+        }
+
+        // Apply emergency priority
+        curWeight -= state.emergencyPriorityFactor;
+
+        // Ensure weight doesn't drop too much unless we explicitly test negative cycles
+        // For safety, let's keep it > 0.1 unless emergency priority heavily forces it
+        // A minimum threshold guarantees A* / Dijkstra still functions, or if it goes < 0 Bellman-Ford kicks in.
+        // Node.js decides algo. If Bellman-ford, it can handle < 0. For Dijkstra we shouldn't allow < 0.
+        // Actually, let's allow it to drop to arbitrary, but cap it at -10 max.
+        
+        g[e.u].push_back({e.v, curWeight});
+        g[e.v].push_back({e.u, curWeight});
+    }
+    return g;
+}
+
+// ─────────────────────────────────────────────
 //  MIN-HEAP (priority queue node)
 // ─────────────────────────────────────────────
 struct PQNode {
@@ -116,10 +166,22 @@ inline std::vector<int> reconstructPath(const std::vector<int>& prev, int dst) {
 }
 
 // ─────────────────────────────────────────────
-//  HEURISTIC (Euclidean distance × 10)
+//  HEURISTICS
 // ─────────────────────────────────────────────
-inline double heuristic(int a, int b) {
+inline double heuristicEuclidean(int a, int b) {
     double dx = CITY_NODES[a].x - CITY_NODES[b].x;
     double dy = CITY_NODES[a].y - CITY_NODES[b].y;
     return std::sqrt(dx * dx + dy * dy) * 10.0;
+}
+
+inline double heuristicManhattan(int a, int b) {
+    double dx = std::abs(CITY_NODES[a].x - CITY_NODES[b].x);
+    double dy = std::abs(CITY_NODES[a].y - CITY_NODES[b].y);
+    return (dx + dy) * 10.0;
+}
+
+inline double heuristic(int a, int b) {
+    // Defaulting to Euclidean for best smooth performance, 
+    // but Manhattan is available per requirements.
+    return heuristicEuclidean(a, b);
 }

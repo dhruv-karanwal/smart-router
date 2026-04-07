@@ -35,7 +35,7 @@ struct FWResult {
  *   dist[i] = shortest distance from src to i  (row src of d matrix)
  *   nodesExplored = N  (all nodes are processed)
  */
-AlgoResult floydWarshall(int src, int dst) {
+AlgoResult floydWarshall(const AdjList& g, int src, int dst) {
     using Clock = std::chrono::high_resolution_clock;
     auto t0 = Clock::now();
 
@@ -45,9 +45,11 @@ AlgoResult floydWarshall(int src, int dst) {
 
     for (int i = 0; i < N; ++i) d[i][i] = 0.0;
 
-    for (const auto& e : CITY_EDGES) {
-        d[e.u][e.v] = e.w;   d[e.v][e.u] = e.w;
-        next[e.u][e.v] = e.v; next[e.v][e.u] = e.u;
+    for (int u = 0; u < N; ++u) {
+        for (const auto& e : g[u]) {
+            d[u][e.to] = e.weight;
+            next[u][e.to] = e.to;
+        }
     }
 
     // Triple-loop DP

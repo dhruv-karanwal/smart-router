@@ -102,17 +102,48 @@ static std::string algoToJson(const std::string& key, const AlgoResult& r, int d
     return o.str();
 }
 
+#include <fstream>
+
+// ─────────────────────────────────────────────────────────
+//  State helpers
+// ─────────────────────────────────────────────────────────
+static GraphState loadState(const std::string& filename) {
+    GraphState state;
+    state.emergencyPriorityFactor = 0.0;
+    std::ifstream in(filename);
+    if (!in.is_open()) return state;
+    
+    int nBlocked;
+    if (!(in >> nBlocked)) return state;
+    for (int i=0; i<nBlocked; ++i) {
+        int u, v; in >> u >> v;
+        state.blockedEdges.push_back({u, v});
+    }
+
+    int nTraffic;
+    if (!(in >> nTraffic)) return state;
+    for (int i=0; i<nTraffic; ++i) {
+        int u, v; double mult;
+        in >> u >> v >> mult;
+        std::string key = std::to_string(u) + "-" + std::to_string(v);
+        state.trafficMultipliers[key] = mult;
+    }
+
+    in >> state.emergencyPriorityFactor;
+    return state;
+}
+
 // ─────────────────────────────────────────────────────────
 //  JSON mode entry point
 // ─────────────────────────────────────────────────────────
-static int runJson(int src, int dst, const std::string& algo) {
-    const AdjList G = buildGraph();
+static int runJson(int src, int dst, const std::string& algo, const GraphState& state) {
+    const AdjList G = buildDynamicGraph(state);
 
     if (algo == "all") {
         AlgoResult dR = dijkstra(G, src, dst);
         AlgoResult aR = aStar(G, src, dst);
-        AlgoResult bR = bellmanFord(src, dst);
-        AlgoResult fR = floydWarshall(src, dst);
+        AlgoResult bR = bellmanFord(G, src, dst);
+        AlgoResult fR = floydWarshall(G, src, dst);
 
         std::cout << "{";
         std::cout << "\"dijkstra\":"  << algoToJson("dijkstra",  dR, dst) << ",";
@@ -126,8 +157,8 @@ static int runJson(int src, int dst, const std::string& algo) {
     AlgoResult r;
     if      (algo == "dijkstra") r = dijkstra(G, src, dst);
     else if (algo == "astar")    r = aStar(G,  src, dst);
-    else if (algo == "bellman")  r = bellmanFord(src, dst);
-    else if (algo == "floyd")    r = floydWarshall(src, dst);
+    else if (algo == "bellman")  r = bellmanFord(G, src, dst);
+    else if (algo == "floyd")    r = floydWarshall(G, src, dst);
     else {
         std::cerr << "{\"error\":\"Unknown algorithm: " << algo << "\"}" << std::endl;
         return 1;
@@ -163,8 +194,8 @@ static void listNodes() {
     printDivider();
 }
 
-static void runComparison(int src, int dst) {
-    const AdjList G = buildGraph();
+static void runComparison(int src, int dst, const GraphState& state) {
+    const AdjList G = buildDynamicGraph(state);
 
     std::cout << BOLD << CYAN
               << "\n  +==========================================================+\n"
@@ -180,8 +211,8 @@ static void runComparison(int src, int dst) {
 
     AlgoResult dRes = dijkstra(G, src, dst);
     AlgoResult aRes = aStar(G, src, dst);
-    AlgoResult bRes = bellmanFord(src, dst);
-    AlgoResult fRes = floydWarshall(src, dst);
+    AlgoResult bRes = bellmanFord(G, src, dst);
+    AlgoResult fRes = floydWarshall(G, src, dst);
 
     struct Entry { std::string name; AlgoResult result; std::string color; };
     std::vector<Entry> entries = {
@@ -247,15 +278,39 @@ static void runComparison(int src, int dst) {
 // ─────────────────────────────────────────────────────────
 int main(int argc, char* argv[]) {
 
-    // ── JSON mode: --json <src> <dst> <algo> ──────────────
-    if (argc >= 2 && std::string(argv[1]) == "--json") {
-        if (argc != 5) {
-            std::cerr << "{\"error\":\"Usage: route_optimizer --json <src> <dst> <algo>\"}" << std::endl;
+    bool isJson = false;
+    std::string stateFile = "";
+    int src = -1, dst = -1;
+    std::string algo = "";
+
+    // Quick arg parse
+    std::vector<std::string> positional;
+    for (int i = 1; i < argc; ++i) {
+        std::string arg = argv[i];
+        if (arg == "--json") {
+            isJson = true;
+        } else if (arg == "--state" && i + 1 < argc) {
+            stateFile = argv[++i];
+        } else {
+            positional.push_back(arg);
+        }
+    }
+
+    GraphState state;
+    if (!stateFile.empty()) {
+        state = loadState(stateFile);
+    }
+
+    // ── JSON mode ──────────────
+    if (isJson) {
+        if (positional.size() < 3) {
+            std::cerr << "{\"error\":\"Usage: route_optimizer --json [--state file] <src> <dst> <algo>\"}" << std::endl;
             return 1;
         }
-        int src = std::stoi(argv[2]);
-        int dst = std::stoi(argv[3]);
-        std::string algo = argv[4];
+        src = std::stoi(positional[0]);
+        dst = std::stoi(positional[1]);
+        algo = positional[2];
+        
         if (src < 0 || src >= N || dst < 0 || dst >= N) {
             std::cerr << "{\"error\":\"Node IDs must be in range 0 to " << N - 1 << "\"}" << std::endl;
             return 1;
@@ -264,14 +319,13 @@ int main(int argc, char* argv[]) {
             std::cerr << "{\"error\":\"Source and destination must differ.\"}" << std::endl;
             return 1;
         }
-        return runJson(src, dst, algo);
+        return runJson(src, dst, algo, state);
     }
 
     // ── Human-readable mode ────────────────────────────────
-    int src = -1, dst = -1;
-    if (argc == 3) {
-        src = std::stoi(argv[1]);
-        dst = std::stoi(argv[2]);
+    if (positional.size() >= 2) {
+        src = std::stoi(positional[0]);
+        dst = std::stoi(positional[1]);
     } else {
         listNodes();
         std::cout << "  Enter source node ID      : ";
@@ -289,6 +343,6 @@ int main(int argc, char* argv[]) {
         return 1;
     }
 
-    runComparison(src, dst);
+    runComparison(src, dst, state);
     return 0;
 }

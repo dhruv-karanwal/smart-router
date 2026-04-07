@@ -26,7 +26,7 @@
  * NOTE: uses CITY_EDGES directly (undirected → both directions expanded).
  * Returns AlgoResult.  execTimeMs includes the full (V-1) pass sweep.
  */
-AlgoResult bellmanFord(int src, int dst) {
+AlgoResult bellmanFord(const AdjList& g, int src, int dst) {
     using Clock = std::chrono::high_resolution_clock;
     auto t0 = Clock::now();
 
@@ -34,12 +34,12 @@ AlgoResult bellmanFord(int src, int dst) {
     std::vector<int>    prev(N, -1);
     dist[src] = 0.0;
 
-    // Build directed edge list from undirected CITY_EDGES
+    // Build directed edge list from adjacency list
     std::vector<Edge> directedEdges;
-    directedEdges.reserve(CITY_EDGES.size() * 2);
-    for (const auto& e : CITY_EDGES) {
-        directedEdges.push_back({e.u, e.v, e.w});
-        directedEdges.push_back({e.v, e.u, e.w});
+    for (int u = 0; u < N; ++u) {
+        for (const auto& e : g[u]) {
+            directedEdges.push_back({u, e.to, e.weight});
+        }
     }
 
     // Relax edges (V-1) times

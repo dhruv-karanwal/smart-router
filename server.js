@@ -58,18 +58,84 @@ function runCpp(args) {
     });
 }
 
-// ── POST /api/route ──────────────────────────────────────────────────────
-// Body: { src: number, dst: number, algo: string }
-// Returns single-algorithm JSON result from C++
-app.post('/api/route', async (req, res) => {
-    const { src, dst, algo } = req.body;
+const fs = require('fs');
 
-    if (src === undefined || dst === undefined || !algo) {
-        return res.status(400).json({ error: 'Missing src, dst, or algo in request body' });
+// ── Global System State ────────────────────────────────────────────────────
+let systemState = {
+    blockedEdges: [], // Array of {u, v}
+    trafficMultipliers: {}, // Keyed by "u-v", value is additional weight multiplier
+    emergencyLevel: 'low' // low, medium, high
+};
+
+const STATE_FILE = path.join(__dirname, 'cpp', 'state.txt');
+
+// Helper to write state for C++ engine
+function writeStateFile() {
+    let content = "";
+    
+    // 1. Blocked edges
+    content += `${systemState.blockedEdges.length}\n`;
+    for (const e of systemState.blockedEdges) {
+        content += `${e.u} ${e.v}\n`;
+    }
+
+    // 2. Traffic Multipliers
+    const trafficKeys = Object.keys(systemState.trafficMultipliers);
+    content += `${trafficKeys.length}\n`;
+    for (const key of trafficKeys) {
+        const [u, v] = key.split('-');
+        const mult = systemState.trafficMultipliers[key];
+        content += `${u} ${v} ${mult}\n`;
+    }
+
+    // 3. Emergency Priority
+    let priorityVal = 0.0;
+    if (systemState.emergencyLevel === 'medium') priorityVal = 1.0;
+    if (systemState.emergencyLevel === 'high') priorityVal = 2.0;
+    content += `${priorityVal}\n`;
+
+    fs.writeFileSync(STATE_FILE, content, 'utf8');
+}
+
+// ── POST /api/smart-route ────────────────────────────────────────────────
+app.post('/api/smart-route', async (req, res) => {
+    const { src, dst, emergency_level, traffic_level } = req.body;
+
+    if (src === undefined || dst === undefined) {
+        return res.status(400).json({ error: 'Missing src or dst in request body' });
+    }
+
+    if (emergency_level) systemState.emergencyLevel = emergency_level;
+    
+    // (Optional) apply temporary overall traffic level impact here if we wanted
+    writeStateFile();
+
+    // Smart logic: Select algorithm based on conditions
+    // If priority could result in negative edges, use Bellman-Ford
+    // Otherwise rely on A* for real-time speed
+    let algoToUse = 'astar';
+    if (systemState.emergencyLevel === 'high') {
+        // High priority subtracts weights, might cause negative weights
+        algoToUse = 'bellman'; 
     }
 
     try {
-        const result = await runCpp(['--json', String(src), String(dst), algo]);
+        const result = await runCpp(['--json', '--state', STATE_FILE, String(src), String(dst), algoToUse]);
+        res.json(result);
+    } catch (err) {
+        res.status(500).json(err);
+    }
+});
+
+// ── POST /api/route (legacy) ─────────────────────────────────────────────
+app.post('/api/route', async (req, res) => {
+    const { src, dst, algo } = req.body;
+    if (src === undefined || dst === undefined || !algo) {
+        return res.status(400).json({ error: 'Missing src, dst, or algo in request body' });
+    }
+    writeStateFile();
+    try {
+        const result = await runCpp(['--json', '--state', STATE_FILE, String(src), String(dst), algo]);
         res.json(result);
     } catch (err) {
         res.status(500).json(err);
@@ -77,31 +143,26 @@ app.post('/api/route', async (req, res) => {
 });
 
 // ── POST /api/compare ────────────────────────────────────────────────────
-// Body: { src: number, dst: number, algos: string[] }
-//   algos can be ['dijkstra','astar','bellman','floyd'] or omit for all
-// Returns object keyed by algo name
 app.post('/api/compare', async (req, res) => {
     const { src, dst, algos } = req.body;
-
     if (src === undefined || dst === undefined) {
         return res.status(400).json({ error: 'Missing src or dst in request body' });
     }
 
-    // If all 4 are requested (or none specified), use the C++ "all" shortcut
+    writeStateFile();
+
     const ALL_ALGOS = ['dijkstra', 'astar', 'bellman', 'floyd'];
     const requested = Array.isArray(algos) && algos.length > 0 ? algos : ALL_ALGOS;
     const runAll = requested.length === 4 && ALL_ALGOS.every(a => requested.includes(a));
 
     try {
         if (runAll) {
-            // Single spawn for all 4 — most efficient
-            const result = await runCpp(['--json', String(src), String(dst), 'all']);
+            const result = await runCpp(['--json', '--state', STATE_FILE, String(src), String(dst), 'all']);
             return res.json(result);
         }
 
-        // Run only the requested subset in parallel
         const promises = requested.map(algo =>
-            runCpp(['--json', String(src), String(dst), algo])
+            runCpp(['--json', '--state', STATE_FILE, String(src), String(dst), algo])
                 .then(r => ({ algo, r }))
         );
         const results = await Promise.all(promises);
@@ -111,6 +172,48 @@ app.post('/api/compare', async (req, res) => {
     } catch (err) {
         res.status(500).json(err);
     }
+});
+
+// ── NEW API: Simulate Traffic ─────────────────────────────────────────
+app.post('/api/simulate-traffic', (req, res) => {
+    const { u, v, traffic_multiplier } = req.body;
+    if (u === undefined || v === undefined || traffic_multiplier === undefined) {
+        return res.status(400).json({ error: 'Missing u, v, or traffic_multiplier' });
+    }
+    
+    const key1 = `${u}-${v}`;
+    const key2 = `${v}-${u}`;
+    if (traffic_multiplier <= 1.0) {
+        delete systemState.trafficMultipliers[key1];
+        delete systemState.trafficMultipliers[key2];
+    } else {
+        systemState.trafficMultipliers[key1] = traffic_multiplier;
+        systemState.trafficMultipliers[key2] = traffic_multiplier;
+    }
+    
+    res.json({ message: 'Traffic updated', state: systemState.trafficMultipliers });
+});
+
+// ── NEW API: Block Road ───────────────────────────────────────────────
+app.post('/api/block-road', (req, res) => {
+    const { u, v, blocked } = req.body;
+    if (u === undefined || v === undefined || blocked === undefined) {
+        return res.status(400).json({ error: 'Missing u, v, or blocked' });
+    }
+
+    // remove existing
+    systemState.blockedEdges = systemState.blockedEdges.filter(e => !(e.u === u && e.v === v) && !(e.u === v && e.v === u));
+
+    if (blocked) {
+        systemState.blockedEdges.push({ u, v }); // undirected representation
+    }
+
+    res.json({ message: 'Road block updated', blockedEdges: systemState.blockedEdges });
+});
+
+// ── NEW API: Get Metrics ───────────────────────────────────────────────
+app.get('/api/metrics', (req, res) => {
+    res.json(systemState);
 });
 
 // ── Start ──────────────────────────────────────────────────────────────────
@@ -124,7 +227,11 @@ app.listen(PORT, () => {
     console.log('');
     console.log(`  C++ binary: ${CPP_BIN}`);
     console.log('  API endpoints:');
-    console.log('    POST /api/route    { src, dst, algo }');
-    console.log('    POST /api/compare  { src, dst, algos[] }');
+    console.log('    POST /api/smart-route    { src, dst, emergency_level, traffic_level }');
+    console.log('    POST /api/simulate-traffic { u, v, traffic_multiplier }');
+    console.log('    POST /api/block-road     { u, v, blocked }');
+    console.log('    POST /api/route          { src, dst, algo }');
+    console.log('    POST /api/compare        { src, dst, algos[] }');
+    console.log('    GET  /api/metrics');
     console.log('');
 });

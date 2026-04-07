@@ -1,831 +1,247 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Smart Emergency Route Optimization System</title>
-  <meta name="description"
-    content="Real-time emergency vehicle route optimization using Dijkstra, A*, Bellman-Ford, and Floyd-Warshall graph algorithms for smart city emergency response." />
+  <title>Ambulance Emergency Dispatch Dashboard</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link
-    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap"
-    rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <link rel="stylesheet" href="styles.css" />
 </head>
+<body class="dashboard-body">
 
-<body>
-
-  <!-- ===================== NAVBAR ===================== -->
-  <nav class="navbar" id="navbar">
-    <div class="nav-container">
-      <div class="nav-brand">
-        <div class="nav-logo">
-          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <rect x="2" y="8" width="20" height="12" rx="2" stroke="currentColor" stroke-width="2" />
-            <path d="M7 8V6a5 5 0 0110 0v2" stroke="currentColor" stroke-width="2" />
-            <path d="M12 13v2m0 0v2m0-2h2m-2 0H10" stroke="#E63946" stroke-width="2" stroke-linecap="round" />
-            <circle cx="6" cy="20" r="1.5" fill="currentColor" />
-            <circle cx="18" cy="20" r="1.5" fill="currentColor" />
-          </svg>
-        </div>
-        <div class="nav-title-group">
-          <span class="nav-title">SEROS</span>
-          <span class="nav-subtitle">Emergency Route Optimizer</span>
-        </div>
-      </div>
-      <ul class="nav-links" id="navLinks">
-        <li><a href="#dashboard" class="nav-link active" data-section="dashboard">Dashboard</a></li>
-        <li><a href="#route-planner" class="nav-link" data-section="route-planner">Route Planner</a></li>
-        <li><a href="#algo-dashboard" class="nav-link" data-section="algo-dashboard">Algorithm Dashboard</a></li>
-        <li><a href="#about" class="nav-link" data-section="about">About</a></li>
-      </ul>
-      <div class="nav-status">
-        <span class="status-dot pulse"></span>
-        <span class="status-text">System Online</span>
-      </div>
-      <button class="hamburger" id="hamburger" aria-label="Toggle menu">
-        <span></span><span></span><span></span>
-      </button>
+  <!-- ===================== TOP HEADER ===================== -->
+  <header class="sys-header">
+    <div class="brand">
+      <span class="logo">🚑</span>
+      <h1>SEROS – Emergency Control System</h1>
     </div>
-  </nav>
-
-  <!-- ===================== HERO / DASHBOARD ===================== -->
-  <section class="hero" id="dashboard">
-    <div class="hero-bg-grid"></div>
-    <div class="hero-container">
-      <div class="hero-content">
-        <div class="hero-badge">
-          <span class="badge-dot"></span>
-          Advanced DSA — Graph Algorithms
-        </div>
-        <h1 class="hero-title">
-          Optimize Emergency<br />
-          <span class="gradient-text">Routes Instantly</span>
-        </h1>
-        <p class="hero-description">
-          This system calculates the fastest route for emergency vehicles using advanced graph algorithms like
-          <strong>Dijkstra, A*, Bellman-Ford</strong> and <strong>Floyd-Warshall</strong>. Real-time pathfinding across
-          a dynamic city graph ensures every second counts.
-        </p>
-        <div class="hero-actions">
-          <a href="#route-planner" class="btn btn-primary" id="startPlanningBtn">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-              <polygon points="5 3 19 12 5 21 5 3" />
-            </svg>
-            Start Route Planning
-          </a>
-          <a href="#algo-dashboard" class="btn btn-outline">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path
-                d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-            </svg>
-            Algorithm Dashboard
-          </a>
-        </div>
-        <div class="hero-stats">
-          <div class="hero-stat">
-            <span class="hero-stat-value">16</span>
-            <span class="hero-stat-label">City Nodes</span>
-          </div>
-          <div class="hero-stat">
-            <span class="hero-stat-value">24</span>
-            <span class="hero-stat-label">Road Edges</span>
-          </div>
-          <div class="hero-stat">
-            <span class="hero-stat-value">4</span>
-            <span class="hero-stat-label">Algorithms</span>
-          </div>
-        </div>
-      </div>
-      <div class="hero-visual">
-        <div class="map-card">
-          <div class="map-card-header">
-            <div class="map-card-dots">
-              <span class="dot dot-red"></span>
-              <span class="dot dot-yellow"></span>
-              <span class="dot dot-green"></span>
-            </div>
-            <span class="map-card-label">Live City Graph</span>
-            <div class="map-card-pulse"><span class="pulse-ring"></span></div>
-          </div>
-          <canvas id="heroMapCanvas" class="hero-canvas" width="460" height="300"></canvas>
-        </div>
-      </div>
+    <div class="status-center">
+      <div class="status-badge"><span class="dot dot-green blink"></span> System Live</div>
+      <div class="emergency-counter">Active Emergencies: <span id="activeCounter">1</span></div>
+      <div class="sys-timer" id="sysClock">--:--:--</div>
     </div>
-  </section>
+  </header>
 
-  <!-- ===================== QUICK STATS ===================== -->
-  <section class="stats-section" id="stats">
-    <div class="container">
-      <div class="stats-grid">
-        <div class="stat-card">
-          <div class="stat-card-icon icon-blue">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="12" cy="12" r="3" />
-              <path d="M12 2v3m0 14v3M2 12h3m14 0h3" />
-            </svg>
-          </div>
-          <div class="stat-card-body">
-            <div class="stat-card-value">16</div>
-            <div class="stat-card-label">Total Nodes</div>
-          </div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-card-icon icon-purple">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M3 12h18M12 3l9 9-9 9" />
-            </svg>
-          </div>
-          <div class="stat-card-body">
-            <div class="stat-card-value">24</div>
-            <div class="stat-card-label">Total Roads</div>
-          </div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-card-icon icon-red">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
-            </svg>
-          </div>
-          <div class="stat-card-body">
-            <div class="stat-card-value" id="selectedAlgo">—</div>
-            <div class="stat-card-label">Selected Algorithm</div>
-          </div>
-        </div>
-        <div class="stat-card">
-          <div class="stat-card-icon icon-green">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
-              <polyline points="9 22 9 12 15 12 15 22" />
-            </svg>
-          </div>
-          <div class="stat-card-body">
-            <div class="stat-card-value" id="routeLength">— km</div>
-            <div class="stat-card-label">Route Length</div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ===================== ROUTE PLANNER ===================== -->
-  <section class="section" id="route-planner">
-    <div class="container">
-      <div class="section-header">
-        <div class="section-tag">Route Planner</div>
-        <h2 class="section-title">Calculate Optimal Path</h2>
-        <p class="section-description">Select start and destination, choose an algorithm, and visualize the shortest
-          path for emergency dispatch.</p>
-      </div>
-      <div class="planner-layout">
-        <div class="planner-controls">
-          <div class="control-card">
-            <div class="control-card-header">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0118 0z" />
-                <circle cx="12" cy="10" r="3" />
-              </svg>
-              Route Configuration
-            </div>
-            <div class="form-group">
-              <label class="form-label" for="startLocation"><span class="label-dot dot-green"></span>Start
-                Location</label>
-              <div class="select-wrapper">
-                <select id="startLocation" class="form-select">
-                  <option value="">Select start point...</option>
-                </select>
-                <svg class="select-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <polyline points="6 9 12 15 18 9" />
-                </svg>
-              </div>
-            </div>
-            <div class="route-connector">
-              <div class="connector-line"></div>
-              <div class="connector-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                  <line x1="12" y1="5" x2="12" y2="19" />
-                  <polyline points="19 12 12 19 5 12" />
-                </svg></div>
-              <div class="connector-line"></div>
-            </div>
-            <div class="form-group">
-              <label class="form-label" for="endLocation"><span class="label-dot dot-red"></span>Destination</label>
-              <div class="select-wrapper">
-                <select id="endLocation" class="form-select">
-                  <option value="">Select destination...</option>
-                </select>
-                <svg class="select-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <polyline points="6 9 12 15 18 9" />
-                </svg>
-              </div>
-            </div>
-            <div class="form-group">
-              <label class="form-label">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                  <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
-                </svg>
-                Algorithm
-              </label>
-              <div class="algo-selector" id="algoSelector">
-                <button class="algo-btn active" data-algo="dijkstra">
-                  <div class="algo-btn-inner"><span class="algo-name">Dijkstra</span><span
-                      class="algo-complexity">O((V+E) log V)</span></div><span class="algo-check">✓</span>
-                </button>
-                <button class="algo-btn" data-algo="astar">
-                  <div class="algo-btn-inner"><span class="algo-name">A* Search</span><span
-                      class="algo-complexity">Heuristic-based</span></div><span class="algo-check">✓</span>
-                </button>
-                <button class="algo-btn" data-algo="bellman">
-                  <div class="algo-btn-inner"><span class="algo-name">Bellman-Ford</span><span
-                      class="algo-complexity">O(V × E)</span></div><span class="algo-check">✓</span>
-                </button>
-                <button class="algo-btn" data-algo="floyd">
-                  <div class="algo-btn-inner"><span class="algo-name">Floyd-Warshall</span><span
-                      class="algo-complexity">O(V³)</span></div><span class="algo-check">✓</span>
-                </button>
-              </div>
-            </div>
-            <button class="btn btn-primary btn-full" id="calculateBtn">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                <circle cx="11" cy="11" r="8" />
-                <path d="m21 21-4.35-4.35" />
-              </svg>
-              <span id="calcBtnText">Calculate Route</span>
-            </button>
-            <button class="btn btn-ghost btn-full" id="resetBtn">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
-                <path d="M3 3v5h5" />
-              </svg>
-              Reset
-            </button>
-          </div>
-          <div class="result-card" id="resultCard">
-            <div class="result-card-header">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
-                <polyline points="22 4 12 14.01 9 11.01" />
-              </svg>
-              Route Result
-            </div>
-            <div class="result-metrics">
-              <div class="result-metric"><span class="result-metric-label">Total Distance</span><span
-                  class="result-metric-value" id="resultDistance">—</span></div>
-              <div class="result-metric"><span class="result-metric-label">Est. Time</span><span
-                  class="result-metric-value" id="resultTime">—</span></div>
-              <div class="result-metric"><span class="result-metric-label">Nodes Explored</span><span
-                  class="result-metric-value" id="resultNodes">—</span></div>
-              <div class="result-metric"><span class="result-metric-label">Algorithm Used</span><span
-                  class="result-metric-value" id="resultAlgo">—</span></div>
-            </div>
-            <div class="result-path" id="resultPath"></div>
-          </div>
-        </div>
-        <div class="map-panel">
-          <div class="map-panel-header">
-            <div class="map-panel-title">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6" />
-                <line x1="8" y1="2" x2="8" y2="18" />
-                <line x1="16" y1="6" x2="16" y2="22" />
-              </svg>
-              City Graph Visualization
-            </div>
-            <div class="map-panel-badges">
-              <span class="badge badge-outline"><span class="badge-dot-sm dot-green"></span> Start</span>
-              <span class="badge badge-outline"><span class="badge-dot-sm dot-red"></span> End</span>
-              <span class="badge badge-outline"><span class="badge-dot-sm" style="background:#3b82f6"></span>
-                Explored</span>
-              <span class="badge badge-outline"><span class="badge-dot-sm" style="background:#f59e0b"></span>
-                Path</span>
-            </div>
-          </div>
-          <div class="canvas-wrapper">
-            <canvas id="mainMapCanvas" width="800" height="520"></canvas>
-            <div class="canvas-overlay" id="canvasOverlay">
-              <div class="overlay-content">
-                <div class="overlay-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                    <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6" />
-                    <line x1="8" y1="2" x2="8" y2="18" />
-                    <line x1="16" y1="6" x2="16" y2="22" />
-                  </svg></div>
-                <p>Select start &amp; destination,<br />then click <strong>Calculate Route</strong></p>
-              </div>
-            </div>
-          </div>
-          <div class="map-footer">
-            <div class="map-info" id="mapInfo">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="12" cy="12" r="10" />
-                <line x1="12" y1="8" x2="12" y2="12" />
-                <line x1="12" y1="16" x2="12.01" y2="16" />
-              </svg>
-              City graph with 16 intersection nodes and 24 road edges
-            </div>
-            <div class="map-controls">
-              <button class="icon-btn" id="zoomIn" title="Zoom In">+</button>
-              <button class="icon-btn" id="zoomOut" title="Zoom Out">−</button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ===================== ALGORITHM COMPARISON DASHBOARD ===================== -->
-  <section class="section section-alt" id="algo-dashboard">
-    <div class="container">
-      <div class="section-header">
-        <div class="section-tag">Analytics</div>
-        <h2 class="section-title">Algorithm Comparison Dashboard</h2>
-        <p class="section-description">Select algorithms, run a head-to-head comparison, and visualize their exact
-          performance across your chosen route.</p>
-      </div>
-
-      <!-- ── Selection + Summary Stats Row ── -->
-      <div class="dash-top-row">
-
-        <!-- Algorithm Selection Panel -->
-        <div class="dash-panel sel-panel">
-          <div class="dash-panel-title">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
-            </svg>
-            Algorithm Selection
-          </div>
-          <p class="sel-hint">Choose which algorithms to include in the comparison, then click Run.</p>
-          <div class="checkbox-list">
-            <label class="cb-item" id="cb-dijkstra">
-              <input type="checkbox" value="dijkstra" checked />
-              <span class="cb-dot" style="background:#457B9D"></span>
-              <span class="cb-name">Dijkstra</span>
-              <span class="cb-tag">O((V+E) log V)</span>
-            </label>
-            <label class="cb-item" id="cb-astar">
-              <input type="checkbox" value="astar" checked />
-              <span class="cb-dot" style="background:#E63946"></span>
-              <span class="cb-name">A* Search</span>
-              <span class="cb-tag">Heuristic-based</span>
-            </label>
-            <label class="cb-item" id="cb-bellman">
-              <input type="checkbox" value="bellman" checked />
-              <span class="cb-dot" style="background:#7c3aed"></span>
-              <span class="cb-name">Bellman-Ford</span>
-              <span class="cb-tag">O(V × E)</span>
-            </label>
-            <label class="cb-item" id="cb-floyd">
-              <input type="checkbox" value="floyd" checked />
-              <span class="cb-dot" style="background:#f97316"></span>
-              <span class="cb-name">Floyd-Warshall</span>
-              <span class="cb-tag">O(V³)</span>
-            </label>
-          </div>
-          <div class="sel-route-info" id="selRouteInfo">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="12" cy="12" r="10" />
-              <line x1="12" y1="8" x2="12" y2="12" />
-              <line x1="12" y1="16" x2="12.01" y2="16" />
-            </svg>
-            Uses the route from the Route Planner above
-          </div>
-          <button class="btn btn-primary btn-full" id="runComparisonBtn">
-            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-              <polygon points="5 3 19 12 5 21 5 3" />
-            </svg>
-            Run Comparison
-          </button>
-        </div>
-
-        <!-- Summary Statistics Cards -->
-        <div class="dash-summary-grid">
-          <div class="summary-card summary-card-featured">
-            <div class="summary-card-label">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <polygon
-                  points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-              </svg>
-              Fastest Algorithm
-            </div>
-            <div class="summary-card-value" id="fastestAlgo">—</div>
-            <div class="summary-card-sub" id="fastestTime">Run comparison to see results</div>
-          </div>
-          <div class="summary-card">
-            <div class="summary-card-label">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M21 10c0 7-9 13-9 13S3 17 3 10a9 9 0 0118 0z" />
-                <circle cx="12" cy="10" r="3" />
-              </svg>
-              Shortest Distance
-            </div>
-            <div class="summary-card-value" id="shortestDist">—</div>
-            <div class="summary-card-sub">Optimal route length</div>
-          </div>
-          <div class="summary-card">
-            <div class="summary-card-label">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="12" cy="12" r="3" />
-                <path d="M12 2v3m0 14v3M2 12h3m14 0h3" />
-              </svg>
-              Total Nodes
-            </div>
-            <div class="summary-card-value">16</div>
-            <div class="summary-card-sub">City intersections</div>
-          </div>
-          <div class="summary-card">
-            <div class="summary-card-label">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M3 12h18M12 3l9 9-9 9" />
-              </svg>
-              Total Roads
-            </div>
-            <div class="summary-card-value">24</div>
-            <div class="summary-card-sub">Weighted road edges</div>
-          </div>
-        </div>
-      </div>
-
-      <!-- ── Comparison Result Table ── -->
-      <div class="dash-section-title">
+  <!-- ===================== 3-COLUMN DASHBOARD ===================== -->
+  <main class="dashboard-grid">
+    
+    <!-- LEFT PANEL: Emergency Dispatch -->
+    <aside class="panel left-panel">
+      <div class="panel-header">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <rect x="3" y="3" width="18" height="18" rx="2" />
-          <path d="M3 9h18M3 15h18M9 3v18" />
+          <path d="M22 12h-4l-3 9L9 3l-3 9H2"></path>
         </svg>
-        Performance Comparison Table
+        Emergency Dispatch
       </div>
-      <div class="table-wrapper">
-        <table class="comparison-table" id="comparisonTable">
+      <div class="panel-content">
+        
+        <div class="form-group">
+          <label for="startLocation">📍 Incident Location</label>
+          <div class="select-wrapper">
+            <select id="startLocation" class="form-select"></select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="endLocation">🏥 Destination Hospital</label>
+          <div class="select-wrapper">
+            <select id="endLocation" class="form-select"></select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="incidentType">⚕️ Emergency Type</label>
+          <div class="select-wrapper">
+            <select id="incidentType" class="form-select">
+              <option value="cardiac">Cardiac Arrest</option>
+              <option value="trauma">Severe Trauma</option>
+              <option value="accident">Traffic Accident</option>
+              <option value="maternity">Maternity</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="emergencyLevel">🚨 Priority Level</label>
+          <div class="select-wrapper priority-wrapper">
+            <select id="emergencyLevel" class="form-select">
+              <option value="low">🟢 Normal</option>
+              <option value="medium">🟡 Urgent</option>
+              <option value="high" selected>🔴 Critical</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>🧠 Routing Algorithm</label>
+          <div class="algo-selector" id="algoSelector">
+            <button class="algo-btn active" data-algo="dijkstra">Dijkstra</button>
+            <button class="algo-btn" data-algo="astar">A*</button>
+            <button class="algo-btn" data-algo="bellman">Bellman</button>
+            <button class="algo-btn" data-algo="floyd">Floyd</button>
+          </div>
+        </div>
+
+        <hr class="panel-divider" />
+
+        <div class="form-group traffic-sim-group">
+          <label>🌐 Environment Simulation</label>
+          <div class="sim-actions">
+            <button class="btn btn-outline" id="simTrafficBtn">🚦 Increase Traffic</button>
+            <button class="btn btn-outline" id="blockRoadBtn">🚧 Block Road</button>
+            <button class="btn btn-outline" id="resetBtn">🔄 Reset Graph</button>
+          </div>
+        </div>
+
+        <button class="btn btn-dispatch" id="calculateBtn">
+          🚑 Dispatch Ambulance
+        </button>
+
+      </div>
+    </aside>
+
+    <!-- CENTER PANEL: Visualization -->
+    <section class="panel center-panel">
+      <div class="panel-header">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"></polygon>
+          <line x1="8" y1="2" x2="8" y2="18"></line>
+          <line x1="16" y1="6" x2="16" y2="22"></line>
+        </svg>
+        Live Route Visualization
+      </div>
+      <div class="map-legend">
+        <span class="legend-item"><span class="dot dot-green"></span> Low Traffic</span>
+        <span class="legend-item"><span class="dot dot-yellow"></span> Med Traffic</span>
+        <span class="legend-item"><span class="dot dot-red"></span> Heavy Traffic</span>
+        <span class="legend-item"><span class="dot dot-grey"></span> Blocked</span>
+      </div>
+      <div class="canvas-wrapper">
+        <canvas id="mainMapCanvas"></canvas>
+      </div>
+    </section>
+
+    <!-- RIGHT PANEL: Routing Intelligence -->
+    <aside class="panel right-panel">
+      <div class="panel-header">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="10"></circle>
+          <line x1="12" y1="16" x2="12" y2="12"></line>
+          <line x1="12" y1="8" x2="12.01" y2="8"></line>
+        </svg>
+        Routing Intelligence
+      </div>
+      <div class="panel-content result-panel">
+        
+        <div class="result-box primary-result">
+          <div class="result-label">Selected Algorithm</div>
+          <div class="result-value" id="resultAlgo">—</div>
+          <div class="result-sub" id="resultAlgoReason">Awaiting dispatch</div>
+        </div>
+
+        <div class="intel-grid">
+          <div class="intel-card">
+            <div class="intel-icon">⏱️</div>
+            <div class="intel-info">
+              <span class="intel-label">Calc Time</span>
+              <span class="intel-val" id="resultTime">—</span>
+            </div>
+          </div>
+          <div class="intel-card">
+            <div class="intel-icon">🛣️</div>
+            <div class="intel-info">
+              <span class="intel-label">Total Distance</span>
+              <span class="intel-val" id="resultDistance">—</span>
+            </div>
+          </div>
+          <div class="intel-card">
+            <div class="intel-icon">🔍</div>
+            <div class="intel-info">
+              <span class="intel-label">Nodes Explored</span>
+              <span class="intel-val" id="resultNodes">—</span>
+            </div>
+          </div>
+          <div class="intel-card">
+            <div class="intel-icon">⏳</div>
+            <div class="intel-info">
+              <span class="intel-label">Est. ETA</span>
+              <span class="intel-val" id="resultETA">—</span>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </aside>
+
+  </main>
+
+  <!-- ===================== BOTTOM SECTION: COMPARISON TABLE ===================== -->
+  <section class="bottom-section">
+    <div class="panel">
+      <div class="panel-header">
+        <div style="display:flex; justify-content:space-between; align-items:center; width:100%;">
+          <span>📊 DSA Algorithm Comparison</span>
+          <button class="btn btn-outline btn-sm" id="runComparisonBtn">Run Full Comparison</button>
+        </div>
+      </div>
+      <div class="table-responsive">
+        <table class="comp-table">
           <thead>
             <tr>
               <th>Algorithm</th>
-              <th>Time Complexity</th>
-              <th>Space</th>
-              <th>Nodes Explored</th>
-              <th>Exec Time</th>
-              <th>Route Distance</th>
-              <th>Result Path</th>
               <th>Status</th>
+              <th>Execution Time (ms)</th>
+              <th>Total Cost / Dist</th>
+              <th>Nodes Explored</th>
+              <th>Path Generated</th>
             </tr>
           </thead>
           <tbody>
-            <tr id="row-dijkstra">
-              <td><span class="table-algo-name algo-dijkstra">Dijkstra</span></td>
-              <td><code>O((V+E) log V)</code></td>
-              <td><code>O(V)</code></td>
-              <td class="td-nodes" id="td-d-nodes">—</td>
-              <td class="td-time" id="td-d-time">—</td>
-              <td class="td-path" id="td-d-path">—</td>
-              <td class="td-result" id="td-d-result">—</td>
-              <td><span class="badge-status status-idle" id="status-dijkstra">Idle</span></td>
+            <!-- dijkstra -->
+            <tr>
+              <td><strong>Dijkstra</strong></td>
+              <td><span class="status-badge" id="status-dijkstra">Pending</span></td>
+              <td id="td-d-time">—</td>
+              <td id="td-d-path">—</td>
+              <td id="td-d-nodes">—</td>
+              <td class="font-mono text-xs" id="td-d-result">—</td>
             </tr>
-            <tr id="row-astar">
-              <td><span class="table-algo-name algo-astar">A* Search</span></td>
-              <td><code>O(E log V)</code></td>
-              <td><code>O(V)</code></td>
-              <td class="td-nodes" id="td-a-nodes">—</td>
-              <td class="td-time" id="td-a-time">—</td>
-              <td class="td-path" id="td-a-path">—</td>
-              <td class="td-result" id="td-a-result">—</td>
-              <td><span class="badge-status status-idle" id="status-astar">Idle</span></td>
+            <!-- astar -->
+            <tr>
+              <td><strong>A* Search</strong></td>
+              <td><span class="status-badge" id="status-astar">Pending</span></td>
+              <td id="td-a-time">—</td>
+              <td id="td-a-path">—</td>
+              <td id="td-a-nodes">—</td>
+              <td class="font-mono text-xs" id="td-a-result">—</td>
             </tr>
-            <tr id="row-bellman">
-              <td><span class="table-algo-name algo-bellman">Bellman-Ford</span></td>
-              <td><code>O(V × E)</code></td>
-              <td><code>O(V)</code></td>
-              <td class="td-nodes" id="td-b-nodes">—</td>
-              <td class="td-time" id="td-b-time">—</td>
-              <td class="td-path" id="td-b-path">—</td>
-              <td class="td-result" id="td-b-result">—</td>
-              <td><span class="badge-status status-idle" id="status-bellman">Idle</span></td>
+            <!-- bellman -->
+            <tr>
+              <td><strong>Bellman-Ford</strong></td>
+              <td><span class="status-badge" id="status-bellman">Pending</span></td>
+              <td id="td-b-time">—</td>
+              <td id="td-b-path">—</td>
+              <td id="td-b-nodes">—</td>
+              <td class="font-mono text-xs" id="td-b-result">—</td>
             </tr>
-            <tr id="row-floyd">
-              <td><span class="table-algo-name algo-floyd">Floyd-Warshall</span></td>
-              <td><code>O(V³)</code></td>
-              <td><code>O(V²)</code></td>
-              <td class="td-nodes" id="td-f-nodes">—</td>
-              <td class="td-time" id="td-f-time">—</td>
-              <td class="td-path" id="td-f-path">—</td>
-              <td class="td-result" id="td-f-result">—</td>
-              <td><span class="badge-status status-idle" id="status-floyd">Idle</span></td>
+            <!-- floyd -->
+            <tr>
+              <td><strong>Floyd-Warshall</strong></td>
+              <td><span class="status-badge" id="status-floyd">Pending</span></td>
+              <td id="td-f-time">—</td>
+              <td id="td-f-path">—</td>
+              <td id="td-f-nodes">—</td>
+              <td class="font-mono text-xs" id="td-f-result">—</td>
             </tr>
           </tbody>
         </table>
       </div>
-
-      <!-- ── Charts Row ── -->
-      <div class="charts-row">
-        <div class="chart-card">
-          <div class="chart-card-header">
-            <div class="chart-card-title">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <rect x="3" y="3" width="18" height="18" rx="2" />
-                <path d="M9 17V11m4 6V9m4 8V7" />
-              </svg>
-              Execution Time (ms)
-            </div>
-            <span class="chart-badge">Bar Chart</span>
-          </div>
-          <div class="chart-wrapper">
-            <canvas id="timeChart"></canvas>
-          </div>
-        </div>
-        <div class="chart-card">
-          <div class="chart-card-header">
-            <div class="chart-card-title">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="12" cy="12" r="10" />
-                <path d="M12 2a10 10 0 0 1 10 10H12z" />
-              </svg>
-              Nodes Explored
-            </div>
-            <span class="chart-badge">Bar Chart</span>
-          </div>
-          <div class="chart-wrapper">
-            <canvas id="nodesChart"></canvas>
-          </div>
-        </div>
-      </div>
-
-      <!-- ── Route Visualization with Algorithm Switcher ── -->
-      <div class="dash-section-title">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6" />
-          <line x1="8" y1="2" x2="8" y2="18" />
-          <line x1="16" y1="6" x2="16" y2="22" />
-        </svg>
-        Route Visualization — Switch Algorithms
-      </div>
-      <div class="viz-section">
-        <div class="viz-switcher">
-          <button class="viz-algo-btn active" data-vizalgo="dijkstra" id="viz-btn-dijkstra">
-            <span class="viz-dot" style="background:#457B9D"></span>Dijkstra
-          </button>
-          <button class="viz-algo-btn" data-vizalgo="astar" id="viz-btn-astar">
-            <span class="viz-dot" style="background:#E63946"></span>A* Search
-          </button>
-          <button class="viz-algo-btn" data-vizalgo="bellman" id="viz-btn-bellman">
-            <span class="viz-dot" style="background:#7c3aed"></span>Bellman-Ford
-          </button>
-          <button class="viz-algo-btn" data-vizalgo="floyd" id="viz-btn-floyd">
-            <span class="viz-dot" style="background:#f97316"></span>Floyd-Warshall
-          </button>
-        </div>
-        <div class="viz-map-wrap">
-          <div class="viz-legend">
-            <span class="legend-item"><span class="legend-dot" style="background:#3b82f6"></span>Blue — Roads</span>
-            <span class="legend-item"><span class="legend-line" style="background:#E63946"></span>Red — Chosen
-              Route</span>
-            <span class="legend-item"><span class="legend-dot" style="background:#16a34a"></span>Green — Start</span>
-            <span class="legend-item"><span class="legend-dot" style="background:#f59e0b"></span>Yellow —
-              Destination</span>
-          </div>
-          <div class="viz-canvas-wrapper">
-            <canvas id="vizMapCanvas" width="900" height="460"></canvas>
-            <div class="canvas-overlay" id="vizOverlay">
-              <div class="overlay-content">
-                <div class="overlay-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-                    <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6" />
-                  </svg></div>
-                <p>Run comparison to enable<br />algorithm switching visualization</p>
-              </div>
-            </div>
-          </div>
-          <div class="viz-info-bar" id="vizInfoBar">
-            <span id="vizAlgoName">—</span>
-            <span>|</span>
-            <span id="vizDistance">—</span>
-            <span>|</span>
-            <span id="vizNodes">—</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- ── Algorithm Explanation Cards ── -->
-      <div class="dash-section-title">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-          <polyline points="14 2 14 8 20 8" />
-        </svg>
-        Algorithm Explanation Cards
-      </div>
-      <div class="explain-cards">
-        <div class="explain-card" style="--accent:#457B9D">
-          <div class="explain-card-top">
-            <div class="explain-icon" style="background:rgba(69,123,157,0.12);color:#457B9D">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="12" cy="12" r="10" />
-                <polyline points="8 12 12 16 16 12" />
-                <line x1="12" y1="8" x2="12" y2="16" />
-              </svg>
-            </div>
-            <div>
-              <div class="explain-name">Dijkstra Algorithm</div>
-              <div class="explain-complexity" style="color:#457B9D">O((V+E) log V)</div>
-            </div>
-          </div>
-          <p class="explain-desc">Finds the shortest path from a source node to all other nodes in a weighted graph
-            using a min-heap priority queue. Guarantees optimal result with non-negative edge weights.</p>
-          <div class="explain-chips">
-            <span class="chip">Priority Queue</span>
-            <span class="chip">Min-Heap</span>
-            <span class="chip">Non-negative weights</span>
-          </div>
-          <div class="explain-usecase">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-            </svg>
-            <strong>Use Case:</strong> Ambulance dispatch via shortest road route
-          </div>
-        </div>
-
-        <div class="explain-card" style="--accent:#E63946">
-          <div class="explain-card-top">
-            <div class="explain-icon" style="background:rgba(230,57,70,0.1);color:#E63946">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <polygon
-                  points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-              </svg>
-            </div>
-            <div>
-              <div class="explain-name">A* Search Algorithm</div>
-              <div class="explain-complexity" style="color:#E63946">Heuristic-based</div>
-            </div>
-          </div>
-          <p class="explain-desc">Uses a heuristic function f(n) = g(n) + h(n) to guide the search toward the goal.
-            Explores significantly fewer nodes than Dijkstra on spatial graphs, making it ideal for city maps.</p>
-          <div class="explain-chips">
-            <span class="chip">Heuristic Search</span>
-            <span class="chip">Euclidean h(n)</span>
-            <span class="chip">Goal-driven</span>
-          </div>
-          <div class="explain-usecase">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-            </svg>
-            <strong>Use Case:</strong> Fire truck GPS routing in real-time
-          </div>
-        </div>
-
-        <div class="explain-card" style="--accent:#7c3aed">
-          <div class="explain-card-top">
-            <div class="explain-icon" style="background:rgba(124,58,237,0.1);color:#7c3aed">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
-              </svg>
-            </div>
-            <div>
-              <div class="explain-name">Bellman-Ford Algorithm</div>
-              <div class="explain-complexity" style="color:#7c3aed">O(V × E)</div>
-            </div>
-          </div>
-          <p class="explain-desc">Finds shortest paths by iteratively relaxing all edges V-1 times. Can handle negative
-            edge weights and detect negative-weight cycles, making it more versatile than Dijkstra.</p>
-          <div class="explain-chips">
-            <span class="chip">Edge Relaxation</span>
-            <span class="chip">Negative weights</span>
-            <span class="chip">Cycle detection</span>
-          </div>
-          <div class="explain-usecase">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-            </svg>
-            <strong>Use Case:</strong> Route with dynamic road congestion penalties
-          </div>
-        </div>
-
-        <div class="explain-card" style="--accent:#f97316">
-          <div class="explain-card-top">
-            <div class="explain-icon" style="background:rgba(249,115,22,0.1);color:#f97316">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <rect x="3" y="3" width="7" height="7" />
-                <rect x="14" y="3" width="7" height="7" />
-                <rect x="14" y="14" width="7" height="7" />
-                <rect x="3" y="14" width="7" height="7" />
-              </svg>
-            </div>
-            <div>
-              <div class="explain-name">Floyd-Warshall Algorithm</div>
-              <div class="explain-complexity" style="color:#f97316">O(V³)</div>
-            </div>
-          </div>
-          <p class="explain-desc">Computes all-pairs shortest paths simultaneously using dynamic programming. Builds a
-            V×V distance matrix, providing shortest paths between every pair of nodes in the graph.</p>
-          <div class="explain-chips">
-            <span class="chip">Dynamic Programming</span>
-            <span class="chip">All-pairs paths</span>
-            <span class="chip">V×V matrix</span>
-          </div>
-          <div class="explain-usecase">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-            </svg>
-            <strong>Use Case:</strong> Pre-computing city-wide emergency routing tables
-          </div>
-        </div>
-      </div>
-
     </div>
   </section>
-
-  <!-- ===================== ABOUT ===================== -->
-  <section class="section" id="about">
-    <div class="container">
-      <div class="section-header">
-        <div class="section-tag">About</div>
-        <h2 class="section-title">System Overview</h2>
-        <p class="section-description">An academic implementation of real-world emergency response route optimization,
-          built using fundamental graph theory principles.</p>
-      </div>
-      <div class="about-grid">
-        <div class="about-card">
-          <div class="about-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-              <polyline points="14 2 14 8 20 8" />
-              <line x1="16" y1="13" x2="8" y2="13" />
-              <line x1="16" y1="17" x2="8" y2="17" />
-            </svg></div>
-          <h3>Data Structures Used</h3>
-          <ul class="about-list">
-            <li>Adjacency List (Graph Representation)</li>
-            <li>Min-Heap / Priority Queue (Dijkstra, A*)</li>
-            <li>V×V Distance Matrix (Floyd-Warshall)</li>
-            <li>Hash Map for node distances</li>
-          </ul>
-        </div>
-        <div class="about-card">
-          <div class="about-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-            </svg></div>
-          <h3>Algorithms Implemented</h3>
-          <ul class="about-list">
-            <li>Dijkstra's Shortest Path</li>
-            <li>A* Search with Euclidean Heuristic</li>
-            <li>Bellman-Ford Relaxation</li>
-            <li>Floyd-Warshall All-Pairs Shortest Path</li>
-          </ul>
-        </div>
-        <div class="about-card">
-          <div class="about-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="12" cy="8" r="6" />
-              <path d="M15.477 12.89L17 22l-5-3-5 3 1.523-9.11" />
-            </svg></div>
-          <h3>Use Cases</h3>
-          <ul class="about-list">
-            <li>Ambulance dispatch routing</li>
-            <li>Fire truck real-time navigation</li>
-            <li>Police emergency response</li>
-            <li>Traffic signal pre-emption</li>
-          </ul>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ===================== FOOTER ===================== -->
-  <footer class="footer">
-    <div class="footer-glow"></div>
-    <div class="container">
-      <div class="footer-grid">
-        <div class="footer-brand">
-          <div class="footer-logo">
-            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <rect x="2" y="8" width="20" height="12" rx="2" stroke="currentColor" stroke-width="2" />
-              <path d="M7 8V6a5 5 0 0110 0v2" stroke="currentColor" stroke-width="2" />
-              <path d="M12 13v2m0 0v2m0-2h2m-2 0H10" stroke="#E63946" stroke-width="2" stroke-linecap="round" />
-            </svg>
-          </div>
-          <div>
-            <div class="footer-title">Smart Emergency Route<br />Optimization System</div>
-            <div class="footer-course">Advanced Data Structures &amp; Algorithms — Course Project</div>
-          </div>
-        </div>
-        <div class="footer-links">
-          <h4>Navigation</h4>
-          <ul>
-            <li><a href="#dashboard">Dashboard</a></li>
-            <li><a href="#route-planner">Route Planner</a></li>
-            <li><a href="#algo-dashboard">Algorithm Dashboard</a></li>
-            <li><a href="#about">About</a></li>
-          </ul>
-        </div>
-        <div class="footer-info">
-          <h4>Project Details</h4>
-          <div class="footer-detail"><span>Student</span><strong>Dhruv Karanwal</strong></div>
-          <div class="footer-detail"><span>Institute</span><strong>VIT PUNE</strong></div>
-          <div class="footer-detail"><span>Course</span><strong>Data Structures &amp; Algorithms</strong></div>
-          <div class="footer-detail"><span>Year</span><strong>2025–2026</strong></div>
-        </div>
-      </div>
-      <div class="footer-bottom">
-        <span>© 2026 Smart Emergency Route Optimization System</span>
-        <span class="footer-sep">•</span>
-        <span>Built with Graph Theory &amp; Advanced Algorithms</span>
-      </div>
-    </div>
-  </footer>
 
   <script src="app.js"></script>
 </body>
-
 </html>
