@@ -436,11 +436,12 @@ async function runComparison() {
             const data = rawResults[key];
             if (!data) continue;
             const meta = ALGO_META[key];
-            const dist = data.dist === null ? Infinity : parseFloat(data.dist || data.dist?.[dst]);
+            const distVal = Array.isArray(data.dist) ? data.dist[dst] : data.dist;
+            const dist = distVal === null ? Infinity : parseFloat(distVal);
             const tdP = document.getElementById(`td-${meta.prefix}-path`);
             if(tdP) tdP.textContent = dist === Infinity ? '∞' : `${dist.toFixed(1)} km`;
             const tdT = document.getElementById(`td-${meta.prefix}-time`);
-            if(tdT) tdT.textContent = (data.execTimeMs || data.execTime).toFixed(3);
+            if(tdT) tdT.textContent = (data.execTimeMs ?? data.execTime).toFixed(3);
             const tdN = document.getElementById(`td-${meta.prefix}-nodes`);
             if(tdN) tdN.textContent = data.nodesExplored;
 
